@@ -1,0 +1,23 @@
+ai_website_builder/
+├── app.py
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── README.md
+├── utils/
+│   ├── __init__.py
+│   ├── ai_generator.py
+│   ├── preview.py
+│   └── export.py
+├── components/
+│   ├── __init__.py
+│   ├── sidebar.py
+│   ├── preview_panel.py
+│   └── customization.py
+├── templates/
+│   ├── __init__.py
+│   └── base_template.py
+└── pages/
+    ├── __init__.py
+    ├── gallery.py
+    └── about.py
