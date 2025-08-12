@@ -105,7 +105,11 @@ def main():
         if back_to_dash:
             # Switch tab by clearing selection; dashboard will show list
             st.session_state.current_project_id = st.session_state.current_project_id
-            st.experimental_rerun()
+            try:
+                st.rerun()
+            except AttributeError:
+                st.experimental_rerun()
+            return 
 
         # Handle generation
         if generate_button and user_prompt:
