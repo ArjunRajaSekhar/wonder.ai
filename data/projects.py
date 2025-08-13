@@ -13,29 +13,76 @@ _client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=4000)
 _db = _client[DB_NAME]
 _projects = _db["projects"]
 
-# Indexes
-_projects.create_index([("user_email", ASCENDING), ("project_id", ASCENDING)], unique=True, name="uniq_user_project")
-_projects.create_index([("user_email", ASCENDING), ("updated_at", ASCENDING)], name="user_updated_at")
-
 def now_utc():
     return datetime.utcnow()
 
-def create_project(user_email: str, name: str, prompt: str = "", options: dict | None = None) -> dict:
-    pid = uuid.uuid4().hex[:12]
-    doc = {
-        "user_email": user_email.lower(),
-        "project_id": pid,
-        "name": name.strip() or f"Project {pid[:4]}",
-        "prompt": prompt or "",
-        "options": options or {},
-        "code": None,             # {"html": "...", "css": "...", "js": "..."}
-        "preview_url": None,
-        "status": "new",          # new | generated | exported
-        "created_at": now_utc(),
-        "updated_at": now_utc(),
-    }
-    _projects.insert_one(doc)
-    return doc
+def _ensure_indexes():
+    # Clean legacy bad values so index creation won't choke
+    try:
+        # Remove the field when it's null
+        _projects.update_many({"idempotency_key": None}, {"$unset": {"idempotency_key": ""}})
+    except Exception:
+        pass
+
+    # Regular indexes
+    _projects.create_index(
+        [("user_email", ASCENDING), ("project_id", ASCENDING)],
+        unique=True,
+        name="uniq_user_project"
+    )
+    _projects.create_index(
+        [("user_email", ASCENDING), ("updated_at", ASCENDING)],
+        name="user_updated_at"
+    )
+
+    # Partial unique: only index docs that actually have a string key
+    _projects.create_index(
+        [("user_email", ASCENDING), ("idempotency_key", ASCENDING)],
+        unique=True,
+        name="uniq_user_idempotency",
+        partialFilterExpression={"idempotency_key": {"$exists": True, "$type": "string"}},
+    )
+
+_ensure_indexes()
+
+def create_project(
+    user_email: str,
+    name: str,
+    prompt: str = "",
+    options: dict | None = None,
+    project_id: str | None = None,
+    idempotency_key: str | None = None,
+) -> dict:
+    if not idempotency_key:
+        # Always generate a real key so we never write null
+        idempotency_key = uuid.uuid4().hex
+
+    pid = project_id or uuid.uuid4().hex[:12]
+    now = now_utc()
+
+    # Upsert by (user_email, idempotency_key)
+    _projects.update_one(
+        {"user_email": user_email.lower(), "idempotency_key": idempotency_key},
+        {
+            "$setOnInsert": {
+                "project_id": pid,
+                "idempotency_key": idempotency_key,  # store for audit/debug
+                "name": (name or f"Project {pid[:4]}").strip(),
+                "prompt": prompt or "",
+                "options": options or {},
+                "code": None,
+                "preview_url": None,
+                "status": "new",
+                "created_at": now,
+            },
+            "$set": {"updated_at": now},
+        },
+        upsert=True,
+    )
+
+    return _projects.find_one(
+        {"user_email": user_email.lower(), "idempotency_key": idempotency_key}
+    )
 
 def list_projects(user_email: str, limit: int = 100):
     return list(

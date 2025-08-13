@@ -9,6 +9,7 @@ from utils.export import export_website
 from components.sidebar import render_sidebar
 from components.preview_panel import render_preview
 from components.customization import render_customization
+from components.ingestion_panel import render_ingestion_panel
 
 # Auth UI
 from components.login import render_auth, render_user_menu
@@ -17,7 +18,9 @@ from components.login import render_auth, render_user_menu
 from components.dashboard import render_dashboard, load_project_into_state
 from data.projects import save_generation, get_project, update_project
 
-load_dotenv(dotenv_path=".env.example")
+# Load environment: prefer .env, then fall back to .env.example (without overriding existing)
+load_dotenv()  # .env
+load_dotenv(dotenv_path=".env.example", override=False)
 
 # Page configuration
 st.set_page_config(
@@ -59,11 +62,16 @@ def main():
     # DASHBOARD
     with tabs[0]:
         render_dashboard(user_email)
-        # Quick open-in-builder if a project is already selected
+
+        # Show current project context + ingestion panel
         if st.session_state.get("current_project_id"):
             proj = get_project(user_email, st.session_state.current_project_id)
             if proj:
                 st.success(f"Current project: {proj['name']} ({proj['project_id']})")
+
+                # Documents & Knowledge Base (PDF/Image upload + FAISS indexing)
+                render_ingestion_panel(user_email, st.session_state.current_project_id)
+
                 if st.button("Open in Builder"):
                     st.session_state.current_project_id = proj["project_id"]
                     st.session_state.nav_choice = "Builder"
@@ -103,13 +111,12 @@ def main():
         back_to_dash = c2.button("Back to Dashboard", use_container_width=True)
 
         if back_to_dash:
-            # Switch tab by clearing selection; dashboard will show list
-            st.session_state.current_project_id = st.session_state.current_project_id
+            # Tabs can't be switched programmatically; just rerun and click the Dashboard tab.
             try:
                 st.rerun()
             except AttributeError:
                 st.experimental_rerun()
-            return 
+            return
 
         # Handle generation
         if generate_button and user_prompt:
@@ -137,7 +144,17 @@ def main():
                         code=code,
                         preview_url=preview_url
                     )
+
+                    # Also index generated code into this project's FAISS store
+                    try:
+                        from utils.vector_store import ProjectVectorStore
+                        vs = ProjectVectorStore.for_project(st.session_state.current_project_id)
+                        vs.index_code_artifacts(code, extra_meta={"source": "builder"})
+                    except Exception as _e:
+                        st.warning(f"(Indexing code into vector store failed: {_e})")
+
                     st.success("Website generated and saved to your project!")
+
                 except Exception as e:
                     st.error(f"Error generating website: {str(e)}")
                     st.info("Please try again with a different description or check your API key.")

@@ -6,3 +6,11 @@ langgraph
 pymongo 
 bcrypt 
 python-dotenv
+
+# Added for document parsing + vector store
+faiss-cpu>=1.7.4
+pypdf>=4.2.0
+Pillow>=10.0.0
+sentence-transformers>=2.7.0
+# Optional OCR (install if you want local OCR for images)
+easyocr>=1.7.1

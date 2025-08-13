@@ -76,7 +76,7 @@ class GLMClient:
 
     # -------------------- Core LLM call --------------------
 
-    def chat_completion(self, messages, temperature=1, max_tokens=10000):
+    def chat_completion(self, messages, temperature=1, max_tokens=4000):
         """
         Chat completion with retry logic for handling timeouts and gateway errors
         """
@@ -637,28 +637,28 @@ class GLMClient:
             "If a block is unchanged, return it unchanged. Do not add commentary."
         )
         user_content = f"""
-Edit request: {change}
-Target selector (optional): {selector or '(none)'}
-Current HTML:
-{current.get('html','')}
+        Edit request: {change}
+        Target selector (optional): {selector or '(none)'}
+        Current HTML:
+        {current.get('html','')}
 
-Current CSS:
-{current.get('css','')}
+        Current CSS:
+        {current.get('css','')}
 
-Current JS:
-{current.get('js','')}
+        Current JS:
+        {current.get('js','')}
 
-Return exactly three separate fenced blocks:
-```html
-[UPDATED HTML]
-```
-```css
-[UPDATED CSS]
-```
-```javascript
-[UPDATED JS]
-```
-"""
+        Return exactly three separate fenced blocks:
+        ```html
+        [UPDATED HTML]
+        ```
+        ```css
+        [UPDATED CSS]
+        ```
+        ```javascript
+        [UPDATED JS]
+        ```
+        """
         messages = [{"role": "system", "content": sys}, {"role": "user", "content": user_content}]
         out = self.chat_completion(messages)
         new_html, new_css, new_js = self._split_code_blocks(out)
@@ -774,3 +774,46 @@ Return exactly three separate fenced blocks:
 
         updated_html = "\n".join(out)
         return updated_html, selectors
+
+
+    def analyze_text(self, project_prompt: str, text: str) -> str:
+        """Send a focused analysis request to the same Hugging Face LLM.
+        We pass the project's initial prompt as the system/"thinking" instruction.
+        Returns a concise JSON-style block with key insights.
+        """
+        system = (project_prompt or "You are an expert analyst. Extract the most important facts.").strip()
+        user = ("""Analyze the following content and extract:
+
+            - key topics
+            - entities (people, orgs, places)
+            - short summary (3-5 bullets)
+            - any code-related hints or structures you can infer
+
+            Return a compact JSON object with fields: topics, entities, summary, hints.
+
+            CONTENT START\n\n""" + text[:8000] + "\n\nCONTENT END").strip()
+
+        try:
+
+            resp = self.client.chat.completions.create(
+
+                model=self.model,  # same model as rest of app
+
+                messages=[
+
+                    {"role": "system", "content": system},
+
+                    {"role": "user", "content": user},
+
+                ],
+
+                temperature=0.3,
+
+            )
+
+            return resp.choices[0].message.content if resp and resp.choices else ""
+
+        except Exception as e:
+
+            return f"{{\"error\": \"{str(e)}\"}}"
+
