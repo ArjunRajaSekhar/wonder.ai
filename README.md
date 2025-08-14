@@ -1,7 +1,3 @@
-Here’s a **README.md** draft you can use for your local setup of the `wonder.ai` project (with MongoDB authentication, dashboard, and website builder):
-
----
-
 # 🚀 AI Website Builder — Local Setup Guide
 
 This project is a **Streamlit-based AI Website Builder** with:
