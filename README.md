@@ -147,3 +147,10 @@ wonder.ai/
 * Project data is stored persistently in MongoDB, so users can return and continue editing.
 
 ---
+# Preview:
+
+<img width="2550" height="1402" alt="image" src="https://github.com/user-attachments/assets/f8bf46f9-302c-4fb4-b215-6aa8a4ff1449" />
+<img width="2516" height="1390" alt="image" src="https://github.com/user-attachments/assets/12286ea5-b313-4951-bfc6-37b72951ba8b" />
+<img width="2516" height="1408" alt="image" src="https://github.com/user-attachments/assets/2663be93-37a9-443c-99d2-cea093bd090e" />
+
+
