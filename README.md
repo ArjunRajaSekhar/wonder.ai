@@ -70,11 +70,6 @@ Download from [MongoDB Community Server](https://www.mongodb.com/try/download/co
 
 ## ⚙️ 5. Environment variables
 
-Copy `.env.example` to `.env` and update if needed:
-
-```bash
-cp .env.example .env
-```
 
 Edit `.env`:
 
